@@ -37,17 +37,18 @@
 # }
 
 define ssl::cert (
-  $certfile      = "${name}.crt",
-  $certchainfile = "${name}_chain.crt",
-  $certinterfile = "${name}_inter.crt",
-  $keyfile       = "${name}.key",
-  $source        = "puppet://${::secure_server}/modules/ssldata",
-  $dest_certdir  = '',
-  $dest_keydir   = '',
-  $concat        = false,
-  $user          = 'root',
-  $group         = 'root',
-  $mode          = '0640',
+  $certfile        = "${name}.crt",
+  $certchainfile   = "${name}_chain.crt",
+  $certinterfile   = "${name}_inter.crt",
+  $keyfile         = "${name}.key",
+  $source          = "puppet://${::secure_server}/modules/ssldata",
+  $dest_certdir    = '',
+  $dest_keydir     = '',
+  $concat          = false,
+  $user            = 'root',
+  $group           = 'root',
+  $mode            = '0640',
+  $restart_service = '',
   ) {
   include ssl
   include ssl::params
@@ -64,16 +65,24 @@ define ssl::cert (
     $keydir = $dest_keydir
   }
 
+  if $restart_service == '' {
+    $_notify = undef
+  } else {
+    $_notify = $restart_service
+  }
+
   $secure_server  = hiera('puppetlabs::ssl::secure_server', $::caserver)
 
   File {
-    owner => $user,
-    group => $group,
-    mode  => $mode,
+    owner  => $user,
+    group  => $group,
+    mode   => $mode,
+    notify => $_notify,
   }
 
   Concat {
     ensure_newline => true,
+    notify         => $_notify,
   }
 
   case $concat {
@@ -81,6 +90,9 @@ define ssl::cert (
       $unified_cert = "${certdir}/${certfile}"
       concat { $unified_cert:
         ensure => 'present',
+        mode   => $mode,
+        owner  => $owner,
+        group  => $group,
       }
       concat::fragment{ "${name}_server_cert":
         target => $unified_cert,
@@ -102,6 +114,9 @@ define ssl::cert (
       $unified_cert = "${certdir}/${certfile}"
       concat { $unified_cert:
         ensure => present,
+        mode   => $mode,
+        owner  => $owner,
+        group  => $group,
       }
       concat::fragment{ "${name}_server_cert":
         target => $unified_cert,
